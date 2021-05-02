@@ -1,0 +1,36 @@
+{
+  "AutomaticReconnect": true,
+  "SerialPortName": "COM9",
+  "IsConnecting": false,
+  "IsEnabled": false,
+  "LogIncomingData": false,
+  "IsConnected": false,
+  "BaudRate": 115200,
+  "UpdateMessages": [
+    {
+      "Message": {
+        "Expression": "'{'+isnull([Rpms], '0')+'&'+isnull([SpeedKmh], '0')+'&'+isnull([DataCorePlugin.Computed.Fuel_Percent], '0')+'&'+isnull([WaterTemperature], '0')+'&'+isnull([TurnIndicatorLeft], '0')+'&'+isnull([TurnIndicatorRight], '0')+'&'+isnull([Handbrake], '0')+'&'+isnull([OilTemperature], '0')+'}'"
+      },
+      "IsEnabled": true,
+      "MaximumFrequency": 0
+    }
+  ],
+  "OnConnectMessage": {
+    "Expression": "'{16000&80&100&0&0&0&0&0}'"
+  },
+  "OnDisconnectMessage": {
+    "Expression": "'{0&0&100&0&0&0&0&0}'"
+  },
+  "DtrEnable": true,
+  "RtsEnable": true,
+  "EditorExpanded": true,
+  "Name": "Custom Serial device",
+  "Description": "BT-DASH-GSXR",
+  "LastErrorDate": "2021-05-02T16:47:09.3851032+02:00",
+  "LastErrorMessage": null,
+  "IsFreezed": false,
+  "SettingsBuilder": {
+    "Settings": [],
+    "IsEditMode": false
+  }
+}
