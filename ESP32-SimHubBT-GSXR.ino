@@ -156,15 +156,7 @@ void processMessage() {
         digitalWrite(FUEL_B_PIN, HIGH);
     }
 
-    if (turn_right != 0)
-    {
-        digitalWrite(TURN_PIN, HIGH);
-    }
-    else
-    {
-        digitalWrite(TURN_PIN, LOW);
-    }
-    if (turn_left != 0)
+    if (turn_right != 0 || turn_left != 0)
     {
         digitalWrite(TURN_PIN, HIGH);
     }
