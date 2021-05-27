@@ -25,24 +25,11 @@
 #define FUEL_A_PIN              16
 #define FUEL_B_PIN              17
 
-#define BUF_SIZE                128
+#define BUF_SIZE                64
 
-char simHubMessageBuf[BUF_SIZE];
-BluetoothSerial btSerial;
+char simhub_message_buf[BUF_SIZE];
+BluetoothSerial bt_serial;
 
-float revs;
-float speed_kmh;
-float fuel_percent;
-float water_temperature_degC;
-int turn_left;
-int turn_right;
-int brake;
-float oil_temperature_degC;
-
-unsigned int temp_duty_cycle = 0;
-float speed_Hz = 0;
-float rpm_Hz = 0;
-unsigned int fuel_duty_cycle = 0;
 
 void ledc_init(uint8_t pin, float freq_Hz, ledc_channel_t channel, ledc_timer_t timer) {
     const char * ME = __func__;
@@ -107,26 +94,33 @@ void setup() {
     ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
     
     delay(1000);
-    uint32_t dut_0 = ledc_get_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
-    uint32_t dut_1 = ledc_get_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1);
 
-    memset(simHubMessageBuf, 0x0, BUF_SIZE);
-    btSerial.begin(BT_NAME);
+    memset(simhub_message_buf, 0x0, BUF_SIZE);
+    bt_serial.begin(BT_NAME);
 }
 
 void loop() {
-    if (btSerial.available() > 0)
+    if (bt_serial.available() > 0)
     {
-        btSerial.readBytesUntil('{', simHubMessageBuf, BUF_SIZE);
-        int readCount = btSerial.readBytesUntil('}', simHubMessageBuf, BUF_SIZE);
-        simHubMessageBuf[min(readCount, BUF_SIZE - 1)] = 0x0;
-        processMessage();
-        memset(simHubMessageBuf, 0x0, BUF_SIZE);
+        bt_serial.readBytesUntil('{', simhub_message_buf, BUF_SIZE);
+        int readCount = bt_serial.readBytesUntil('}', simhub_message_buf, BUF_SIZE);
+        simhub_message_buf[min(readCount, BUF_SIZE - 1)] = 0x0;
+        process_message();
+        memset(simhub_message_buf, 0x0, BUF_SIZE);
     }
 }
 
-void processMessage() {
-    sscanf(simHubMessageBuf, "%f&%f&%f&%f&%d&%d&%d&%f",
+void process_message() {
+    unsigned int revs;
+    unsigned int speed_kmh;
+    unsigned int fuel_percent;
+    float water_temperature_degC;
+    int turn_left;
+    int turn_right;
+    int brake;
+    float oil_temperature_degC;
+    
+    sscanf(simhub_message_buf, "%u&%u&%u&%f&%d&%d&%d&%f",
         &revs,
         &speed_kmh,
         &fuel_percent,
@@ -137,20 +131,54 @@ void processMessage() {
         &oil_temperature_degC
     );
 
-    rpm_Hz = 0.016 * revs - 1.143;
-    speed_Hz = 1.48 * speed_kmh + 3;
+    float rpm_Hz = rpm_get_Hz(revs);
+    float speed_Hz = speed_get_Hz(speed_kmh);
 
-    if (fuel_percent > 0.0 && fuel_percent <= 5.0)
+    handle_lights(turn_left, turn_right, fuel_percent);
+
+    ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, rpm_Hz);
+    ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_1, speed_Hz);
+}
+
+float rpm_get_Hz(float revs) {
+    float freq_Hz = 0.016 * revs - 1.143;
+
+    if (freq_Hz < FREQ_MIN_Hz)
+    {
+        return FREQ_MIN_Hz;
+    }
+    
+    return freq_Hz;
+}
+
+float speed_get_Hz(float speed_kmh) {
+    float freq_Hz = 1.48 * speed_kmh + 3;
+
+    if (freq_Hz < FREQ_MIN_Hz)
+    {
+        return FREQ_MIN_Hz;
+    }
+    
+    return freq_Hz;
+}
+
+void handle_lights(
+    int turn_left,
+    int turn_right,
+    unsigned int fuel_percent
+)
+{
+    if (fuel_percent > 0 && fuel_percent <= 5)
     {
         digitalWrite(FUEL_A_PIN, LOW);
         digitalWrite(FUEL_B_PIN, HIGH);
     }
-    else if (fuel_percent > 5.0 && fuel_percent <= 10.0)
+    else if (fuel_percent > 5 && fuel_percent <= 10)
     {
         digitalWrite(FUEL_A_PIN, LOW);
         digitalWrite(FUEL_B_PIN, LOW);
     }
-    else if (fuel_percent > 10.0 && fuel_percent <= 100.0)
+    else if (fuel_percent > 10 && fuel_percent <= 100)
     {
         digitalWrite(FUEL_A_PIN, HIGH);
         digitalWrite(FUEL_B_PIN, HIGH);
@@ -164,16 +192,4 @@ void processMessage() {
     {
         digitalWrite(TURN_PIN, LOW);
     }
-
-    if (rpm_Hz < FREQ_MIN_Hz)
-    {
-        rpm_Hz = FREQ_MIN_Hz;
-    }
-    ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_0, rpm_Hz);
-
-    if (speed_Hz < SPEED_THRESHOLD_Hz)
-    {
-        speed_Hz = FREQ_MIN_Hz;
-    }
-    ledc_set_freq(LEDC_HIGH_SPEED_MODE, LEDC_TIMER_1, speed_Hz);
 }
